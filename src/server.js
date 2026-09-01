@@ -1,0 +1,71 @@
+import express from "express";
+import { config } from "dotenv";
+import { connectDB, disconnectDB } from "./config/db.js";
+
+// Import Routes
+import movieRoutes from "./routes/movieRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+
+config();
+
+const app = express();
+
+// Body parsing middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// API Routes
+app.use("/movies", movieRoutes);
+app.use("/auth", authRoutes);
+
+app.get("/test-auth", (req, res) => {
+    res.json({ message: "Auth route is reachable" });
+});
+
+const PORT = 5001;
+
+const startServer = async () => {
+    try {
+        // Connect to database
+        await connectDB();
+
+        // Start server
+        const server = app.listen(PORT, () => {
+            console.log(`Server is running on PORT ${PORT}`);
+        });
+
+        // Handle unhandled promise rejections
+        process.on("unhandledRejection", (err) => {
+            console.error("Unhandled Rejection:", err);
+
+            server.close(async () => {
+                await disconnectDB();
+                process.exit(1);
+            });
+        });
+
+        // Handle uncaught exceptions
+        process.on("uncaughtException", async (err) => {
+            console.error("Uncaught Exception:", err);
+
+            await disconnectDB();
+            process.exit(1);
+        });
+
+        // Graceful shutdown
+        process.on("SIGTERM", async () => {
+            console.log("SIGTERM received, shutting down gracefully");
+
+            server.close(async () => {
+                await disconnectDB();
+                process.exit(0);
+            });
+        });
+
+    } catch (error) {
+        console.error("Failed to start server:", error);
+        process.exit(1);
+    }
+};
+
+startServer();
