@@ -1,3 +1,4 @@
+
 import express from "express";
 import { config } from "dotenv";
 import { connectDB, disconnectDB } from "./config/db.js";
@@ -17,10 +18,6 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
-
-app.get("/test-auth", (req, res) => {
-    res.json({ message: "Auth route is reachable" });
-});
 
 const PORT = 5001;
 
