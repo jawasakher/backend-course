@@ -11,6 +11,10 @@ config();
 
 const app = express();
 
+app.get("/", (req, res) => {
+    res.json({ status: "ok", message: "API is running" });
+});
+
 // Body parsing middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,6 +22,15 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({ error: "Route not found" });
+});
+
+app.use((error, req, res, next) => {
+    console.error("Request error:", error);
+    res.status(500).json({ error: "Internal server error" });
+});
 
 const PORT = 5001;
 

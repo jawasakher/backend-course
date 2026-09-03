@@ -1,51 +1,112 @@
-import bcrypt from "bcryptjs";
 import { prisma } from "../config/db.js";
+import bcrypt from "bcryptjs";
+import { generateToken } from '../utils/generateToken.js'
 
 const register = async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
+    const { name, email, password } = req.body;
+    const normalizedEmail = typeof email === "string"
+        ? email.trim().toLowerCase()
+        : "";
 
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                error: "Name, email, and password are required",
-            });
-        }
-
-        const userExists = await prisma.user.findUnique({
-            where: { email },
+    if (typeof name !== "string" || !name.trim() ||
+        !normalizedEmail || typeof password !== "string" || !password) {
+        return res.status(400).json({
+            error: "Name, email, and password are required",
         });
+    }
 
-        if (userExists) {
-            return res.status(400).json({
-                error: "User already exists with this email",
-            });
-        }
+    // Check if user already exists
+    const userExists = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+    });
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-            },
+    if (userExists) {
+        return res.status(400).json({
+            error: "User already exists with this email",
         });
+    }
+    // Hash Password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-        return res.status(201).json({
-            message: "User registered successfully",
+    // Create User
+    const user = await prisma.user.create({
+        data: {
+            name: name.trim(),
+            email: normalizedEmail,
+            password: hashedPassword,
+        },
+    });
+
+    // Generate JWT token
+    const token = generateToken(user.id, res);
+
+    res.status(201).json({
+        status: "success",
+        data: {
             user: {
                 id: user.id,
                 name: user.name,
                 email: user.email,
             },
-        });
-    } catch (error) {
-        console.error("Register error:", error);
-        return res.status(500).json({
-            error: "Registration failed",
-            details: error.message,
-        });
-    }
+            token,
+        },
+    });
 };
 
-export { register };
+const login = async (req, res) => {
+    const { email, password } = req.body;
+    const normalizedEmail = typeof email === "string"
+        ? email.trim().toLowerCase()
+        : "";
+
+    if (!normalizedEmail || typeof password !== "string" || !password) {
+        return res.status(400).json({
+            error: "Email and password are required",
+        });
+    }
+
+    // Check if user email exists in the table
+    const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+    });
+
+   if (!user) {
+        return res.status(401).json({error: "Invalid email or password" });
+   } 
+
+   // verify password
+   const isPasswordValid = await bcrypt.compare(password, user.password);
+
+   if (!isPasswordValid) {
+        return res.status(401).json({error: "Invalid email or password" });
+   }
+
+   // Generate JWT token 
+   const token = generateToken(user.id, res);
+
+    res.status(200).json({
+        status: "success",
+        data: {
+            user: {
+                id: user.id,
+                email: user.email,
+            },
+            token: token,
+        },
+    });
+};
+
+
+const logout = async(req, res) => {
+    res.cookie("jwt", "", {
+        httpOnly: true,
+       expires: new Date(0),
+    });
+res.status(200).json({
+    status: "success",
+    message: "Logged out successfully"
+});
+};
+
+export { register, login, logout };
