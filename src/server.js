@@ -6,7 +6,7 @@ import { connectDB, disconnectDB } from "./config/db.js";
 // Import Routes
 import movieRoutes from "./routes/movieRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
-
+import watchlistRoutes from "./routes/watchlistRoutes.js";
 config();
 
 const app = express();
@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
-
+app.use("/watchlist", watchlistRoutes);
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found" });
 });
